@@ -1,0 +1,19 @@
+{
+  "name": "whenquery",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "watch": "esbuild ./src/index.ts --watch --bundle --outfile=index.js",
+    "build": "esbuild ./src/index.ts --minify --bundle --outfile=index.js",
+    "test": "jest --silent=false --noStackTrace"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/jest": "^27.0.3",
+    "esbuild": "^0.14.2",
+    "esbuild-runner": "^2.2.1",
+    "jest": "^27.4.3"
+  }
+}
