@@ -42,7 +42,7 @@ class Scanner {
     this.source = source;
   }
 
-  scanTokens():Token[] {
+  public scanTokens():Token[] {
     this.tokens = [];
     this.start = 0;
     this.current = 0;
@@ -56,7 +56,7 @@ class Scanner {
     return this.tokens;
   }
 
-  scanToken() {
+  private scanToken() {
     let c = this.advance();
     switch (c) {
       case '(': this.addToken(TokenType.LEFT_PAREN); break;
@@ -114,21 +114,21 @@ class Scanner {
     }
   }
 
-  addToken(type:TokenType, literal?:Object) {
+  private addToken(type:TokenType, literal?:Object) {
     let text = this.source.substring(this.start, this.current);
     this.tokens.push(new Token(type, text, literal));
   }
 
-  isAtEnd() {
+  private isAtEnd() {
     return this.current >= this.source.length;
   }
 
-  advance() {
+  private advance() {
     this.current++;
     return this.source.charAt(this.current - 1);
   }
 
-  match(expected:String) {
+  private match(expected:String) {
     if (this.isAtEnd()) return false;
     if (this.source.charAt(this.current) != expected) return false;
 
@@ -136,17 +136,17 @@ class Scanner {
     return true;
   }
 
-  peek() {
+  private peek() {
     if (this.isAtEnd()) return '\0';
     return this.source.charAt(this.current);
   }
 
-  peekNext() {
+  private peekNext() {
     if (this.current + 1 >= this.source.length) return '\0';
     return this.source.charAt(this.current + 1);
   }
 
-  string(terminator:String) {
+  private string(terminator:String) {
     let value = '';
     let prev = '';
 
@@ -178,7 +178,7 @@ class Scanner {
     this.addToken(TokenType.STRING, value);
   }
 
-  number() {
+  private number() {
     while (this.isDigit(this.peek())) {
       this.advance();
     }
@@ -194,7 +194,7 @@ class Scanner {
     this.addToken(TokenType.NUMBER, Number(this.source.substring(this.start, this.current)));
   }
 
-  identifier() {
+  private identifier() {
     while (this.isAlphaNumeric(this.peek())) {
       this.advance();
     }
@@ -212,19 +212,19 @@ class Scanner {
     this.addToken(type);
   }
 
-  isDigit(c:String) {
+  private isDigit(c:String) {
     return '0' <= c && c <= '9';
   }
 
-  isAlpha(c:String) {
+  private isAlpha(c:String) {
     return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || c == '_';
   }
 
-  isAlphaNumeric(c:String) {
+  private isAlphaNumeric(c:String) {
     return this.isAlpha(c) || this.isDigit(c);
   }
 
-  error(message:String) {
+  private error(message:String) {
     throw new Error(`[Syntax error] ${message}`);
   }
 }
@@ -692,16 +692,17 @@ class Interpreter implements Visitor {
   visitArrayOperation(node: ArrayOperation) {
     const array = this.visit(node.left);
     if(Array.isArray(array)) {
+      const jsname = {
+        'any': 'some',
+        'all': 'every'
+      }
+
       switch(node.operator) {
         case 'any':
-          return array.some(item => {
-            this.currentStack.push(item);
-            const result = this.visit(node.right);
-            this.currentStack.pop();
-            return result;
-          });
+        case 'filter':
+        case 'map':
         case 'all':
-          return array.every(item => {
+          return array[jsname[node.operator] ?? node.operator](item => {
             this.currentStack.push(item);
             const result = this.visit(node.right);
             this.currentStack.pop();
@@ -714,20 +715,6 @@ class Interpreter implements Visitor {
             this.currentStack.pop();
             return result ? count + 1 : count;
           }, 0);
-        case 'filter':
-          return array.filter(item => {
-            this.currentStack.push(item);
-            const result = this.visit(node.right);
-            this.currentStack.pop();
-            return result;
-          });
-        case 'map':
-          return array.map(item => {
-            this.currentStack.push(item);
-            const result = this.visit(node.right);
-            this.currentStack.pop();
-            return result;
-          })
       }
     } else {
       console.info('Array operation on non-array', node, 'returning null');
