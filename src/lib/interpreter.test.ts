@@ -1,19 +1,15 @@
-import Interpreter from "./interpreter";
+import run from "./interpreter";
 
-describe("Interpreter", () => {
+describe("run function", () => {
   it("should be defined", () => {
-    expect(Interpreter).toBeDefined();
+    expect(run).toBeDefined();
   });
 
-  it("should be instantiable", () => {
-    expect(new Interpreter(() => {})).toBeInstanceOf(Interpreter);
+  it("should be a function", () => {
+    expect(typeof run).toBe("function");
   });
 
-  it("should have a method `run`", () => {
-    expect(new Interpreter(() => {}).run).toBeDefined();
-  });
-
-  const testInterpreter = new Interpreter((s) => {
+  const context = (s) => {
     switch(s) {
       case "a":
         return "Letter A";
@@ -27,8 +23,25 @@ describe("Interpreter", () => {
         return true;
       case "no":
         return false;
+      case 'obj1':
+        return {
+          a: 1,
+          b: 2,
+          c: 3
+        }
+      case 'obj2':
+        return {
+          a: 'foo',
+          b: 'bar',
+          c: 'baz'
+        }
+      case 'obj3':
+        return {
+          a: 1,
+          b: 'bar'
+        }
     }
-  });
+  };
 
   test.each([
     [ `a`, `Letter A` ],
@@ -60,7 +73,9 @@ describe("Interpreter", () => {
     [ `undefined.a`, undefined ],
     [ `undefined.a.b[undefined] ?? a`, 'Letter A' ],
     [ `[a, b, c] =~ a`, true ],
+    [ `a =~ [a, b, c]`, true ],
     [ `[b, c] =~ a`, false ],
+    [ `a =~ [b, c]`, false ],
     [ `[b, c] =~ [b]`, true ],
     [ `[b, c] =~ [b, c]`, true ],
     [ `[b, c] =~ [a, b, c]`, false ],
@@ -70,7 +85,19 @@ describe("Interpreter", () => {
     [ `12 =~ 7`, false ],
     [ `ten  =~ 2 ? ten  + " is even" : ten  + " is odd"`, "10 is even" ],
     [ `nine =~ 2 ? nine + " is even" : nine + " is odd"`, "9 is odd" ],
+    [ `nine + ten =~ 2 ? nine + ten + " is even" : nine + ten + " is odd"`, "19 is odd" ],
+    [ `[obj1, obj2, obj3] ::count($.a = 1)`, 2],
+    [ `[obj1, obj2, obj3] ::any($.a = 'foo')`, true],
+    [ `[obj1, obj2, obj3] ::all($.a = 'foo')`, false],
+    [ `[obj1, obj2, obj3] ::all($ != null)`, true],
+    [ `[obj1, obj2, obj3, null] ::all($ != null)`, false],
+    [ `[obj1, obj2, obj3, null] ::any($ = null)`, true],
+    [ `[1,2,3,4,5] ::filter($ > 3)`, [4,5]],
+    [ `[1,2,3,4,5] ::filter($ > 3) ::filter($ < 5)`, [4]],
+    [ `[1,2,3,4,5] ::filter($ > 3) ::count($ < 5)`, 1],
+    [ `[1,2,3,4,5] ::filter($ > 3) ::filter($ < 5)[0]`, 4],
+    [ `[[1,2,3],[4,5],[8,19,20]] ::map($ ::filter($ =~ 2))`, [[2],[4],[8,20]]],
   ])("\"%s\" should return %j", (input, expected) => {
-    expect(testInterpreter.run(input)).toStrictEqual(expected);
+    expect(run(context, input)).toStrictEqual(expected);
   });
 })
