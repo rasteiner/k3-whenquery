@@ -9,6 +9,7 @@ enum TokenType {
   GREATER, GREATER_EQUAL,
   LESS, LESS_EQUAL,
   ARROW, QUESTION, DOUBLE_QUESTION,
+  SEARCH,
 
   //Two char tokens
   OR, AND,
@@ -70,7 +71,7 @@ class Scanner {
       case '+': this.addToken(TokenType.PLUS); break;
       case '/': this.addToken(TokenType.SLASH); break;
       case '*': this.addToken(TokenType.STAR); break;
-      case '=': this.addToken(TokenType.EQUAL); break;
+      case '=': this.addToken(this.match('~') ? TokenType.SEARCH : TokenType.EQUAL); break;
       case '?': this.addToken(this.match('?') ? TokenType.DOUBLE_QUESTION : TokenType.QUESTION); break;
       case '-': this.addToken(this.match('>') ? TokenType.ARROW : TokenType.MINUS); break;
       case '!': this.addToken(this.match('=') ? TokenType.BANG_EQUAL : TokenType.BANG); break;
@@ -376,13 +377,17 @@ abstract class Parser {
     this.error(message);
   }
 
-  match(type:TokenType) {
-    return this.check(type) && this.advance();
+  match(...types:TokenType[]) {
+    if(this.check(...types)) {
+      return this.advance();
+    }
+
+    return false;
   }
 
-  check(type:TokenType) {
+  check(...types:TokenType[]):boolean {
     if (this.isAtEnd()) return false;
-    return this.tokens[this.current].type == type;
+    return types.some(type => type === this.tokens[this.current].type);
   }
 
   advance() {
@@ -435,7 +440,7 @@ class KXLParser extends Parser {
   nullishCoalescing() {
     let expr = this.logicalOr();
 
-    if (this.match(TokenType.DOUBLE_QUESTION)) {
+    while (this.match(TokenType.DOUBLE_QUESTION)) {
       let right = this.nullishCoalescing();
       return new NullishCoalescing(expr, right);
     }
@@ -470,7 +475,7 @@ class KXLParser extends Parser {
   equality() {
     let expr = this.comparison();
 
-    while (this.match(TokenType.BANG_EQUAL) || this.match(TokenType.EQUAL)) {
+    while (this.match(TokenType.BANG_EQUAL, TokenType.EQUAL, TokenType.SEARCH)) {
       let operator = this.previous();
       let right = this.comparison();
       expr = new Binary(expr, operator, right);
@@ -482,7 +487,7 @@ class KXLParser extends Parser {
   comparison() {
     let expr = this.addition();
 
-    while (this.match(TokenType.GREATER) || this.match(TokenType.GREATER_EQUAL) || this.match(TokenType.LESS) || this.match(TokenType.LESS_EQUAL)) {
+    while (this.match(TokenType.GREATER, TokenType.GREATER_EQUAL, TokenType.LESS, TokenType.LESS_EQUAL)) {
       let operator = this.previous();
       let right = this.addition();
       expr = new Binary(expr, operator, right);
@@ -494,7 +499,7 @@ class KXLParser extends Parser {
   addition() {
     let expr = this.multiplication();
 
-    while (this.match(TokenType.MINUS) || this.match(TokenType.PLUS)) {
+    while (this.match(TokenType.MINUS, TokenType.PLUS)) {
       let operator = this.previous();
       let right = this.multiplication();
       expr = new Binary(expr, operator, right);
@@ -506,7 +511,7 @@ class KXLParser extends Parser {
   multiplication() {
     let expr = this.unary();
 
-    while (this.match(TokenType.SLASH) || this.match(TokenType.STAR)) {
+    while (this.match(TokenType.SLASH, TokenType.STAR)) {
       let operator = this.previous();
       let right = this.unary();
       expr = new Binary(expr, operator, right);
@@ -516,7 +521,7 @@ class KXLParser extends Parser {
   }
 
   unary() {
-    if (this.match(TokenType.BANG) || this.match(TokenType.MINUS)) {
+    if (this.match(TokenType.BANG, TokenType.MINUS)) {
       let operator = this.previous();
       let right = this.unary();
       return new Unary(operator, right);
@@ -528,7 +533,7 @@ class KXLParser extends Parser {
   memberAccess() {
     let expr = this.primary();
 
-    while (this.match(TokenType.DOT) || this.match(TokenType.LEFT_BRACKET)) {
+    while (this.match(TokenType.DOT, TokenType.LEFT_BRACKET)) {
       if (this.previous().type == TokenType.DOT) {
         let property = this.consume(TokenType.IDENTIFIER, 'Expected property name');
         expr = new MemberAccess(expr, property.lexeme);
@@ -668,9 +673,30 @@ class Interpreter implements Visitor {
         return left && right;
       case TokenType.OR:
         return left || right;
+      case TokenType.SEARCH:
+        return this.search(left, right);
       default:
         throw new Error("Unknown operator: " + node.operator.lexeme);
     }
+  }
+  search(left:any, right:any) {
+    if (typeof left == "string" && typeof right == "string") {
+      return left.indexOf(right) != -1;
+    }
+
+    if (typeof left == "number" && typeof right == "number") {
+      return left % right == 0;
+    }
+
+    if (Array.isArray(left)) {
+      if(Array.isArray(right)) {
+        return right.every(x => left.indexOf(x) !== -1);
+      } else {
+        return left.indexOf(right) !== -1;
+      }
+    }
+
+    throw new Error("Cannot search " + typeof right + " in " + typeof left);
   }
   visitArrayExpression(node:ArrayExpression) {
     return node.elements.map(e => this.visit(e));
@@ -718,12 +744,18 @@ class Interpreter implements Visitor {
   visitComputedMemberAccess(node:ComputedMemberAccess) {
     let object = this.visit(node.object);
     let key = this.visit(node.property);
-    return object[key];
+    if(object !== undefined) {
+      return object[key];
+    }
+    return undefined;
   }
   visitMemberAccess(node:MemberAccess) {
     let object = this.visit(node.object);
     let key = node.property;
-    return object[key];
+    if(object !== undefined) {
+      return object[key];
+    }
+    return undefined;
   }
 }
 

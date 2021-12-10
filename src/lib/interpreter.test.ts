@@ -55,6 +55,21 @@ describe("Interpreter", () => {
     [ `{yes: "foobar"}.yes`, "foobar" ],
     [ `{yes: [1,2,3,4]}.yes[3]`, 4 ],
     [ `{yes: [1,2,3,{a:a}]}["yes"][3].a`, 'Letter A' ],
+    [ `undefined ?? a`, 'Letter A' ],
+    [ `undefined ?? a ?? b`, 'Letter A' ],
+    [ `undefined.a`, undefined ],
+    [ `undefined.a.b[undefined] ?? a`, 'Letter A' ],
+    [ `[a, b, c] =~ a`, true ],
+    [ `[b, c] =~ a`, false ],
+    [ `[b, c] =~ [b]`, true ],
+    [ `[b, c] =~ [b, c]`, true ],
+    [ `[b, c] =~ [a, b, c]`, false ],
+    [ `a =~ "Letter"`, true ],
+    [ `"ABC" =~ "D"`, false ],
+    [ `12 =~ 6`, true ],
+    [ `12 =~ 7`, false ],
+    [ `ten  =~ 2 ? ten  + " is even" : ten  + " is odd"`, "10 is even" ],
+    [ `nine =~ 2 ? nine + " is even" : nine + " is odd"`, "9 is odd" ],
   ])("\"%s\" should return %j", (input, expected) => {
     expect(testInterpreter.run(input)).toStrictEqual(expected);
   });
