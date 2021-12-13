@@ -1,0 +1,21 @@
+{
+  "name": "rasteiner/k3-whenquery",
+  "description": "Conditionally show fields and sections. Better.",
+  "type": "kirby-plugin",
+  "license": "MIT",
+  "homepage": "https://getkirby.com/plugins/rasteiner/k3-whenquery",
+  "version": "0.1.0",
+  "authors": [
+    {
+      "name": "Roman Steiner",
+      "email": "roman@toastlab.ch",
+      "homepage": "https://getkirby.com/plugins/rasteiner"
+    }
+  ],
+  "require": {
+    "getkirby/composer-installer": "^1.2"
+  },
+  "extra": {
+    "installer-name": "k3-whenquery"
+  }
+}
