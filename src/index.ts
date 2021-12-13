@@ -1,4 +1,4 @@
-import Interpreter from "./lib/interpreter";
+import runQuery from "./lib/interpreter";
 
 declare namespace panel {
   function plugin(name: string, options: any): void;
@@ -18,11 +18,11 @@ panel.plugin('rasteiner/whenquery', {
               }
 
               if(element.whenQuery) {
-                const interpreter = new Interpreter((name) => {
+                const context = (name) => {
                   const value = this.$store.getters['content/values']()[name];
                   return value
-                });
-                return interpreter.run(element.whenQuery);
+                };
+                return runQuery(context, element.whenQuery);
               }
 
               return true;

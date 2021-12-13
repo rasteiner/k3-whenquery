@@ -2,7 +2,7 @@ enum TokenType {
   //Single Char tokens
   LEFT_PAREN, RIGHT_PAREN, COMMA, DOT, MINUS, PLUS, SLASH, STAR,
   LEFT_BRACE, RIGHT_BRACE, COLON, EQUAL,
-  LEFT_BRACKET, RIGHT_BRACKET,
+  LEFT_BRACKET, RIGHT_BRACKET, CURRENT,
 
   //One or two char tokens
   BANG, BANG_EQUAL,
@@ -12,7 +12,7 @@ enum TokenType {
   SEARCH,
 
   //Two char tokens
-  OR, AND,
+  OR, AND, DOUBLE_COLON,
 
   //Literals
   IDENTIFIER, STRING, NUMBER,
@@ -42,7 +42,7 @@ class Scanner {
     this.source = source;
   }
 
-  scanTokens():Token[] {
+  public scanTokens():Token[] {
     this.tokens = [];
     this.start = 0;
     this.current = 0;
@@ -56,7 +56,7 @@ class Scanner {
     return this.tokens;
   }
 
-  scanToken() {
+  private scanToken() {
     let c = this.advance();
     switch (c) {
       case '(': this.addToken(TokenType.LEFT_PAREN); break;
@@ -67,10 +67,11 @@ class Scanner {
       case ']': this.addToken(TokenType.RIGHT_BRACKET); break;
       case ',': this.addToken(TokenType.COMMA); break;
       case '.': this.addToken(TokenType.DOT); break;
-      case ':': this.addToken(TokenType.COLON); break;
       case '+': this.addToken(TokenType.PLUS); break;
       case '/': this.addToken(TokenType.SLASH); break;
       case '*': this.addToken(TokenType.STAR); break;
+      case '$': this.addToken(TokenType.CURRENT); break;
+      case ':': this.addToken(this.match(':') ? TokenType.DOUBLE_COLON : TokenType.COLON); break;
       case '=': this.addToken(this.match('~') ? TokenType.SEARCH : TokenType.EQUAL); break;
       case '?': this.addToken(this.match('?') ? TokenType.DOUBLE_QUESTION : TokenType.QUESTION); break;
       case '-': this.addToken(this.match('>') ? TokenType.ARROW : TokenType.MINUS); break;
@@ -113,21 +114,21 @@ class Scanner {
     }
   }
 
-  addToken(type:TokenType, literal?:Object) {
+  private addToken(type:TokenType, literal?:Object) {
     let text = this.source.substring(this.start, this.current);
     this.tokens.push(new Token(type, text, literal));
   }
 
-  isAtEnd() {
+  private isAtEnd() {
     return this.current >= this.source.length;
   }
 
-  advance() {
+  private advance() {
     this.current++;
     return this.source.charAt(this.current - 1);
   }
 
-  match(expected:String) {
+  private match(expected:String) {
     if (this.isAtEnd()) return false;
     if (this.source.charAt(this.current) != expected) return false;
 
@@ -135,17 +136,17 @@ class Scanner {
     return true;
   }
 
-  peek() {
+  private peek() {
     if (this.isAtEnd()) return '\0';
     return this.source.charAt(this.current);
   }
 
-  peekNext() {
+  private peekNext() {
     if (this.current + 1 >= this.source.length) return '\0';
     return this.source.charAt(this.current + 1);
   }
 
-  string(terminator:String) {
+  private string(terminator:String) {
     let value = '';
     let prev = '';
 
@@ -177,7 +178,7 @@ class Scanner {
     this.addToken(TokenType.STRING, value);
   }
 
-  number() {
+  private number() {
     while (this.isDigit(this.peek())) {
       this.advance();
     }
@@ -193,7 +194,7 @@ class Scanner {
     this.addToken(TokenType.NUMBER, Number(this.source.substring(this.start, this.current)));
   }
 
-  identifier() {
+  private identifier() {
     while (this.isAlphaNumeric(this.peek())) {
       this.advance();
     }
@@ -211,19 +212,19 @@ class Scanner {
     this.addToken(type);
   }
 
-  isDigit(c:String) {
+  private isDigit(c:String) {
     return '0' <= c && c <= '9';
   }
 
-  isAlpha(c:String) {
+  private isAlpha(c:String) {
     return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || c == '_';
   }
 
-  isAlphaNumeric(c:String) {
+  private isAlphaNumeric(c:String) {
     return this.isAlpha(c) || this.isDigit(c);
   }
 
-  error(message:String) {
+  private error(message:String) {
     throw new Error(`[Syntax error] ${message}`);
   }
 }
@@ -242,6 +243,8 @@ interface Visitor {
   visitLiteral(node:Literal):any;
   visitMemberAccess(node:MemberAccess):any;
   visitComputedMemberAccess(node:ComputedMemberAccess):any;
+  visitArrayOperation(node:ArrayOperation):any;
+  visitCurrent():any;
 }
 
 class ExpressionNode {
@@ -357,6 +360,26 @@ class ComputedMemberAccess extends ExpressionNode {
 
   accept(visitor: Visitor) {
     return visitor.visitComputedMemberAccess(this);
+  }
+}
+
+class ArrayOperation extends ExpressionNode {
+  constructor(public left:ExpressionNode, public operator:string, public right:ExpressionNode) {
+    super();
+  }
+
+  accept(visitor: Visitor) {
+    return visitor.visitArrayOperation(this);
+  }
+}
+
+class Current extends ExpressionNode {
+  constructor() {
+    super();
+  }
+
+  accept(visitor: Visitor) {
+    return visitor.visitCurrent();
   }
 }
 
@@ -531,7 +554,7 @@ class KXLParser extends Parser {
   }
 
   memberAccess() {
-    let expr = this.primary();
+    let expr = this.arrayOperation();
 
     while (this.match(TokenType.DOT, TokenType.LEFT_BRACKET)) {
       if (this.previous().type == TokenType.DOT) {
@@ -547,13 +570,33 @@ class KXLParser extends Parser {
     return expr;
   }
 
+  arrayOperation() {
+    let expr = this.primary();
+
+    while(this.match(TokenType.DOUBLE_COLON)) {
+      const operator = this.consume(TokenType.IDENTIFIER, 'Expected array operator after ::');
+      if (['any', 'all', 'count', 'filter', 'map'].indexOf(operator.lexeme) !== -1) {
+        this.consume(TokenType.LEFT_PAREN, 'Expected ( after array operator type');
+        const body = this.expression();
+        this.consume(TokenType.RIGHT_PAREN, 'Expected ) after array operator body');
+        expr = new ArrayOperation(expr, operator.lexeme, body);
+      } else {
+        this.error(`Unknown array operator "${operator.lexeme}"`);
+      }
+    }
+
+    return expr;
+  }
 
   primary() {
+
     if (this.match(TokenType.FALSE)) return new Literal(false);
     if (this.match(TokenType.TRUE)) return new Literal(true);
     if (this.match(TokenType.NULL)) return new Literal(null);
     if (this.match(TokenType.NUMBER)) return new Literal(this.previous().literal);
     if (this.match(TokenType.STRING)) return new Literal(this.previous().literal);
+
+    if (this.match(TokenType.CURRENT)) return new Current();
 
     if (this.match(TokenType.LEFT_PAREN)) {
       let expr = this.expression();
@@ -575,6 +618,7 @@ class KXLParser extends Parser {
 
     this.error(`Expect expression`);
   }
+
 
   array() {
     let elements = [];
@@ -631,19 +675,53 @@ class KXLParser extends Parser {
 
 
 class Interpreter implements Visitor {
-  constructor(public lookup:(variableName:string) => any) {}
+  private currentStack: any[];
 
-  run(code:string) {
-    const scanner = new Scanner(code);
-    const tokens = scanner.scanTokens();
-    const parser = new KXLParser(tokens);
-    const dst = parser.expression();
-    return this.visit(dst);
+  constructor(public lookup:(variableName:string) => any) {
+    this.currentStack = [];
   }
 
   visit(node:ExpressionNode) {
     return node.accept(this);
   }
+
+  visitCurrent() {
+    return this.currentStack[this.currentStack.length - 1];
+  }
+
+  visitArrayOperation(node: ArrayOperation) {
+    const array = this.visit(node.left);
+    if(Array.isArray(array)) {
+      const jsname = {
+        'any': 'some',
+        'all': 'every'
+      }
+
+      switch(node.operator) {
+        case 'any':
+        case 'filter':
+        case 'map':
+        case 'all':
+          return array[jsname[node.operator] ?? node.operator](item => {
+            this.currentStack.push(item);
+            const result = this.visit(node.right);
+            this.currentStack.pop();
+            return result;
+          });
+        case 'count':
+          return array.reduce((count, item) => {
+            this.currentStack.push(item);
+            const result = this.visit(node.right);
+            this.currentStack.pop();
+            return result ? count + 1 : count;
+          }, 0);
+      }
+    } else {
+      console.info('Array operation on non-array', node, 'returning null');
+      return null;
+    }
+  }
+
   visitBinary(node:Binary) {
     let left = this.visit(node.left);
     let right = this.visit(node.right);
@@ -680,8 +758,8 @@ class Interpreter implements Visitor {
     }
   }
   search(left:any, right:any) {
-    if (typeof left == "string" && typeof right == "string") {
-      return left.indexOf(right) != -1;
+    if (typeof left == 'string' && typeof right == 'string') {
+      return left.indexOf(right) !== -1;
     }
 
     if (typeof left == "number" && typeof right == "number") {
@@ -694,6 +772,8 @@ class Interpreter implements Visitor {
       } else {
         return left.indexOf(right) !== -1;
       }
+    } else if (Array.isArray(right)) {
+      return right.indexOf(left) !== -1;
     }
 
     throw new Error("Cannot search " + typeof right + " in " + typeof left);
@@ -759,4 +839,11 @@ class Interpreter implements Visitor {
   }
 }
 
-export default Interpreter;
+export default function run(context, code) {
+  const scanner = new Scanner(code);
+  const tokens = scanner.scanTokens();
+  const parser = new KXLParser(tokens);
+  const dst = parser.expression();
+  const interpreter = new Interpreter(context);
+  return interpreter.visit(dst);
+}
