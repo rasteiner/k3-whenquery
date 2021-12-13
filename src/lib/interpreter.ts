@@ -2,13 +2,13 @@ enum TokenType {
   //Single Char tokens
   LEFT_PAREN, RIGHT_PAREN, COMMA, DOT, MINUS, PLUS, SLASH, STAR,
   LEFT_BRACE, RIGHT_BRACE, COLON, EQUAL,
-  LEFT_BRACKET, RIGHT_BRACKET, CURRENT,
+  LEFT_BRACKET, RIGHT_BRACKET, CURRENT, MOD,
 
   //One or two char tokens
   BANG, BANG_EQUAL,
   GREATER, GREATER_EQUAL,
   LESS, LESS_EQUAL,
-  ARROW, QUESTION, DOUBLE_QUESTION,
+  QUESTION, DOUBLE_QUESTION,
   SEARCH,
 
   //Two char tokens
@@ -71,10 +71,11 @@ class Scanner {
       case '/': this.addToken(TokenType.SLASH); break;
       case '*': this.addToken(TokenType.STAR); break;
       case '$': this.addToken(TokenType.CURRENT); break;
+      case '-': this.addToken(TokenType.MINUS); break;
+      case '%': this.addToken(TokenType.MOD); break;
       case ':': this.addToken(this.match(':') ? TokenType.DOUBLE_COLON : TokenType.COLON); break;
       case '=': this.addToken(this.match('~') ? TokenType.SEARCH : TokenType.EQUAL); break;
       case '?': this.addToken(this.match('?') ? TokenType.DOUBLE_QUESTION : TokenType.QUESTION); break;
-      case '-': this.addToken(this.match('>') ? TokenType.ARROW : TokenType.MINUS); break;
       case '!': this.addToken(this.match('=') ? TokenType.BANG_EQUAL : TokenType.BANG); break;
       case '>': this.addToken(this.match('=') ? TokenType.GREATER_EQUAL : TokenType.GREATER); break;
       case '<': this.addToken(this.match('=') ? TokenType.LESS_EQUAL : TokenType.LESS); break;
@@ -534,7 +535,7 @@ class KXLParser extends Parser {
   multiplication() {
     let expr = this.unary();
 
-    while (this.match(TokenType.SLASH, TokenType.STAR)) {
+    while (this.match(TokenType.SLASH, TokenType.STAR, TokenType.MOD)) {
       let operator = this.previous();
       let right = this.unary();
       expr = new Binary(expr, operator, right);
@@ -751,6 +752,8 @@ class Interpreter implements Visitor {
         return left && right;
       case TokenType.OR:
         return left || right;
+      case TokenType.MOD:
+        return left % right;
       case TokenType.SEARCH:
         return this.search(left, right);
       default:

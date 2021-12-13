@@ -59,6 +59,7 @@ describe("run function", () => {
     [ `9 - 8`, 1 ],
     [ `9 - 4 * 2 `, 1 ],
     [ `(9 - 4) * 2 `, 10 ],
+    [ `13 % 5`, 3 ],
     [ `{ a: a }`, { a: `Letter A` } ],
     [ `{ a: a, b: 1-1 ? "Foo" : "Letter B" }`, { a: "Letter A", b: "Letter B" } ],
     [ `{ a: a, b: 1+1 ? "Foo" : "Letter B" }`, { a: "Letter A", b: "Foo" } ],
