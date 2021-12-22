@@ -82,7 +82,7 @@ Member Access is always "optional": it does never throw an error if you access a
 
 The search operator `=~` is a multifunction tool: it behaves differently depending on the type of its operands:
  - `"string" =~ "tri"`: string on string, returns `true` if a string contains another
- - `[a,b,c] =~ a`: element on array, returns `true` if an element is present in an array. This case can optionally also be written in the reverse order: `a ~= [a,b,c]`
+ - `[a,b,c] =~ a`: element on array, returns `true` if an element is present in an array. This case can optionally also be written in the reverse order: `a =~ [a,b,c]`
  - `[a,b,c] =~ [b,c]`: array on array, returns `true` if all elements of the right hand side are present in the left hand side array. 
  - `12 =~ 2`: number on number, returns `true` if "left" is divisible by "right" (`left % right = 0`). 
  
