@@ -617,7 +617,7 @@ class KXLParser extends Parser {
       return new Identifier(this.previous().lexeme);
     }
 
-    this.error(`Expect expression`);
+    return new Literal(true);
   }
 
 
@@ -710,6 +710,11 @@ class Interpreter implements Visitor {
             return result;
           });
         case 'count':
+          //shortcut for literal true
+          if((node.right as Literal).value === true) {
+            return array.length;
+          }
+
           return array.reduce((count, item) => {
             this.currentStack.push(item);
             const result = this.visit(node.right);

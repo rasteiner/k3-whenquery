@@ -23,6 +23,8 @@ describe("run function", () => {
         return true;
       case "no":
         return false;
+      case "arrayOfNumbers":
+        return [1, 2, 3, 4, 5];
       case 'obj1':
         return {
           a: 1,
@@ -44,6 +46,7 @@ describe("run function", () => {
   };
 
   test.each([
+    [ ``, true ],
     [ `a`, `Letter A` ],
     [ `b`, `Letter B` ],
     [ `nine`, 9 ],
@@ -87,6 +90,10 @@ describe("run function", () => {
     [ `ten  =~ 2 ? ten  + " is even" : ten  + " is odd"`, "10 is even" ],
     [ `nine =~ 2 ? nine + " is even" : nine + " is odd"`, "9 is odd" ],
     [ `nine + ten =~ 2 ? nine + ten + " is even" : nine + ten + " is odd"`, "19 is odd" ],
+    [ `arrayOfNumbers::count()`, 5 ],
+    [ `arrayOfNumbers::count(1)`, 5 ],
+    [ `arrayOfNumbers::count(true)`, 5 ],
+    [ `arrayOfNumbers::count(true = true)`, 5 ],
     [ `[obj1, obj2, obj3] ::count($.a = 1)`, 2],
     [ `[obj1, obj2, obj3] ::any($.a = 'foo')`, true],
     [ `[obj1, obj2, obj3] ::all($.a = 'foo')`, false],
