@@ -8,6 +8,7 @@ panel.plugin('rasteiner/whenquery', {
   use: [
     function(Vue) {
       function extend(type) {
+
         const original = Vue.component(type);
         Vue.component(type, {
           extends: original,
@@ -19,8 +20,13 @@ panel.plugin('rasteiner/whenquery', {
 
               if(element.whenQuery) {
                 const context = (name) => {
-                  const value = this.$store.getters['content/values']()[name];
-                  return value
+                  if(this.value?.[name.toLowerCase()] !== undefined) {
+                    //first look if the name exists in a local "value" property
+                    return this.value[name.toLowerCase()];
+                  } else {
+                    //otherwhise look in the global context
+                    return this.$store.getters['content/values']()[name.toLowerCase()];
+                  }
                 };
                 return runQuery(context, element.whenQuery);
               }
