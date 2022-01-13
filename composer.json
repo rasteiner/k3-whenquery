@@ -4,7 +4,6 @@
   "type": "kirby-plugin",
   "license": "MIT",
   "homepage": "https://getkirby.com/plugins/rasteiner/k3-whenquery",
-  "version": "0.1.0",
   "authors": [
     {
       "name": "Roman Steiner",
