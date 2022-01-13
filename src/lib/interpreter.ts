@@ -784,7 +784,7 @@ class Interpreter implements Visitor {
       return right.indexOf(left) !== -1;
     }
 
-    throw new Error("Cannot search " + typeof right + " in " + typeof left);
+    return false;
   }
   visitArrayExpression(node:ArrayExpression) {
     return node.elements.map(e => this.visit(e));
