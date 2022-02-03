@@ -105,6 +105,9 @@ describe("run function", () => {
     [ `[1,2,3,4,5] ::filter($ > 3) ::count($ < 5)`, 1],
     [ `[1,2,3,4,5] ::filter($ > 3) ::filter($ < 5)[0]`, 4],
     [ `[[1,2,3],[4,5],[8,19,20]] ::map($ ::filter($ =~ 2))`, [[2],[4],[8,20]]],
+    [ `[1,2,3,4] ::reduce($1 + $)`, 10],
+    [ `[1,2,3,4] ::reduce($1 + $, 5)`, 15],
+    [ `['1','2','3','4'] ::reduce($1 + $)`, '1234'],
   ])("\"%s\" should return %j", (input, expected) => {
     expect(run(context, input)).toStrictEqual(expected);
   });

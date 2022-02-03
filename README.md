@@ -77,6 +77,7 @@ Since there are no assignments, `=` is an equality comparison (there is no `==`)
  - `... ::count(...)`: Array `count` operator (see below)
  - `... ::any(...)`: Array `any` operator (see below)
  - `... ::all(...)`: Array `all` operator (see below)
+ - `... ::reduce(...)`: Array Reducer (see below)
 
 Member Access is always "optional": it does never throw an error if you access a property of undefined; it just evaluates to `undefined`. In short, `.` behaves like javascript's `?.` and `a[something]` behaves like `a?.[something]`. 
 
@@ -90,18 +91,18 @@ There's also support for String, Number, Boolean (`true`, `false`), Object and A
  
 #### Array operators
 
-- `::map()`: replaces each item in the array with the right hand side expression
-- `::filter()`: filters the array by evaluating right hand side expression
-- `::count()`: counts all items in the array that return true for the right hand side expression
-- `::any()`: returns `true` if at least 1 item in the array returns true for the right hand side expression, `false` otherwise
-- `::all()`: returns `true` if all items in the array return true for the right hand side expression, `false` otherwise
+- `::map(expr)`: replaces each item in the array with the right hand side expression
+- `::filter(expr)`: filters the array by evaluating right hand side expression
+- `::count(expr)`: counts all items in the array that return true for the right hand side expression
+- `::any(expr)`: returns `true` if at least 1 item in the array returns true for the right hand side expression, `false` otherwise
+- `::all(expr)`: returns `true` if all items in the array return true for the right hand side expression, `false` otherwise
 
 ##### General syntax:
 
 Array operators are made of 3 parts:
 1. In the left the array they operate on
 2. after `::` the name of the operation
-3. betwen the parentheses the expression that is evaluated for each array item. 
+3. between the parentheses the expression that is evaluated for each array item. 
 
 Inside of the parentheses, the symbol `$` represents the "current" item. 
 
@@ -111,10 +112,38 @@ fields:
   blocks:
     type: blocks
     
-  imagesWarning:
+  imagesEncouragement:
     type: info
-    label: Image warning
+    label: Nice job!
     text: Good! You have at least 13 images in this post. This will be a **great** post.
     theme: positive
     whenQuery: blocks ::count($.type = 'image') >= 13
 ``` 
+
+#### Array reducers
+Array reducers are functions that take an array and return a single value. They can be used to aggregate values in an array.
+The syntax is similar to the array operators, but `::reduce(expr, ?initial)` accepts an optional initial value. If no initial value is provided, the first item of the array is used.
+Inside of the parentheses, the symbol `$` represents the "current" item, while `$1` represents the return value of the "previous" iteration (aka the "accumulator").
+The array is always traversed left to right.
+
+##### Example
+```yml
+fields:
+  percentages:
+    type: structure
+    fields:
+      percent:
+        type: number
+        after: "%"
+
+  percentagesEncouragement:
+    type: info
+    label: Math GENIUS!
+    text: Great job! The sum of all percentages is exactly 100%.
+    theme: positive
+    whenQuery: percentages ::reduce($1 + $.percent, 0) = 100
+```
+An example usage without an initial value:
+```yml
+    whenQuery: percentages ::map($.percent) ::reduce($1 + $) = 100
+```

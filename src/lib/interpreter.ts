@@ -1,15 +1,16 @@
 enum TokenType {
   //Single Char tokens
   LEFT_PAREN, RIGHT_PAREN, COMMA, DOT, MINUS, PLUS, SLASH, STAR,
-  LEFT_BRACE, RIGHT_BRACE, COLON, EQUAL,
-  LEFT_BRACKET, RIGHT_BRACKET, CURRENT, MOD,
+  LEFT_BRACE, RIGHT_BRACE, COLON,
+  LEFT_BRACKET, RIGHT_BRACKET, MOD,
 
   //One or two char tokens
   BANG, BANG_EQUAL,
   GREATER, GREATER_EQUAL,
   LESS, LESS_EQUAL,
   QUESTION, DOUBLE_QUESTION,
-  SEARCH,
+  CURRENT, PREVIOUS,
+  EQUAL, SEARCH,
 
   //Two char tokens
   OR, AND, DOUBLE_COLON,
@@ -70,9 +71,9 @@ class Scanner {
       case '+': this.addToken(TokenType.PLUS); break;
       case '/': this.addToken(TokenType.SLASH); break;
       case '*': this.addToken(TokenType.STAR); break;
-      case '$': this.addToken(TokenType.CURRENT); break;
       case '-': this.addToken(TokenType.MINUS); break;
       case '%': this.addToken(TokenType.MOD); break;
+      case '$': this.addToken(this.match('1') ? TokenType.PREVIOUS : TokenType.CURRENT); break;
       case ':': this.addToken(this.match(':') ? TokenType.DOUBLE_COLON : TokenType.COLON); break;
       case '=': this.addToken(this.match('~') ? TokenType.SEARCH : TokenType.EQUAL); break;
       case '?': this.addToken(this.match('?') ? TokenType.DOUBLE_QUESTION : TokenType.QUESTION); break;
@@ -245,7 +246,8 @@ interface Visitor {
   visitMemberAccess(node:MemberAccess):any;
   visitComputedMemberAccess(node:ComputedMemberAccess):any;
   visitArrayOperation(node:ArrayOperation):any;
-  visitCurrent():any;
+  visitArrayReducer(node:ArrayReducer):any;
+  visitCurrent(node:Current):any;
 }
 
 class ExpressionNode {
@@ -374,13 +376,23 @@ class ArrayOperation extends ExpressionNode {
   }
 }
 
-class Current extends ExpressionNode {
-  constructor() {
+class ArrayReducer extends ExpressionNode {
+  constructor(public left:ExpressionNode, public body:ExpressionNode, public initialValue:ExpressionNode) {
     super();
   }
 
   accept(visitor: Visitor) {
-    return visitor.visitCurrent();
+    return visitor.visitArrayReducer(this);
+  }
+}
+
+class Current extends ExpressionNode {
+  constructor(public index:number = 0) {
+    super();
+  }
+
+  accept(visitor: Visitor) {
+    return visitor.visitCurrent(this);
   }
 }
 
@@ -576,11 +588,20 @@ class KXLParser extends Parser {
 
     while(this.match(TokenType.DOUBLE_COLON)) {
       const operator = this.consume(TokenType.IDENTIFIER, 'Expected array operator after ::');
-      if (['any', 'all', 'count', 'filter', 'map'].indexOf(operator.lexeme) !== -1) {
+      if (['any', 'all', 'count', 'filter', 'map', 'reduce'].indexOf(operator.lexeme) !== -1) {
         this.consume(TokenType.LEFT_PAREN, 'Expected ( after array operator type');
         const body = this.expression();
+        if(operator.lexeme === 'reduce') {
+          let initialValue = undefined;
+          if (this.match(TokenType.COMMA)) {
+            initialValue = this.expression();
+          }
+          expr = new ArrayReducer(expr, body, initialValue);
+        } else {
+          expr = new ArrayOperation(expr, operator.lexeme, body);
+        }
+
         this.consume(TokenType.RIGHT_PAREN, 'Expected ) after array operator body');
-        expr = new ArrayOperation(expr, operator.lexeme, body);
       } else {
         this.error(`Unknown array operator "${operator.lexeme}"`);
       }
@@ -598,6 +619,7 @@ class KXLParser extends Parser {
     if (this.match(TokenType.STRING)) return new Literal(this.previous().literal);
 
     if (this.match(TokenType.CURRENT)) return new Current();
+    if (this.match(TokenType.PREVIOUS)) return new Current(1);
 
     if (this.match(TokenType.LEFT_PAREN)) {
       let expr = this.expression();
@@ -677,17 +699,23 @@ class KXLParser extends Parser {
 
 class Interpreter implements Visitor {
   private currentStack: any[];
+  private previousStack: any[];
 
   constructor(public lookup:(variableName:string) => any) {
     this.currentStack = [];
+    this.previousStack = [];
   }
 
   visit(node:ExpressionNode) {
     return node.accept(this);
   }
 
-  visitCurrent() {
-    return this.currentStack[this.currentStack.length - 1];
+  visitCurrent(current:Current) {
+    if(current.index === 0) {
+      return this.currentStack[this.currentStack.length - 1];
+    } else {
+      return this.previousStack[this.previousStack.length - 1];
+    }
   }
 
   visitArrayOperation(node: ArrayOperation) {
@@ -724,6 +752,36 @@ class Interpreter implements Visitor {
       }
     } else {
       console.info('Array operation on non-array', node, 'returning null');
+      return null;
+    }
+  }
+
+  visitArrayReducer(node: ArrayReducer) {
+    const array = this.visit(node.left);
+    if(Array.isArray(array)) {
+      let value;
+      let startIndex = 0;
+
+      if(node.initialValue !== undefined) {
+        //reduce with initial value
+        value = this.visit(node.initialValue);
+      } else {
+        // reduce without initial value: initial value is first element
+        value = array[0];
+        startIndex = 1;
+      }
+
+      for(let i = startIndex; i < array.length; i++) {
+        this.currentStack.push(array[i]);
+        this.previousStack.push(value);
+        value = this.visit(node.body);
+        this.previousStack.pop();
+        this.currentStack.pop();
+      }
+
+      return value;
+    } else {
+      console.info('Array reducer on non-array', node, 'returning null');
       return null;
     }
   }
