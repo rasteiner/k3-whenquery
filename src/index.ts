@@ -15,7 +15,6 @@ panel.plugin('rasteiner/whenquery', {
           extends: options,
           created() {
             modelContainer.model = this.model;
-            console.log(type, this.model);
           },
           watch: {
             model: function(newValue) {
