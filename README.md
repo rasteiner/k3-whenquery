@@ -147,3 +147,59 @@ An example usage without an initial value:
 ```yml
     whenQuery: percentages ::map($.percent) ::reduce($1 + $) = 100
 ```
+
+### Variables lookup
+#### Content variables
+By default, any valid identifier refers to the "current" fieldset. 
+This means that page fields could be [shadowed](https://en.wikipedia.org/wiki/Variable_shadowing) 
+by other fields with the same name in a structure or block, when the query is executed in such structure or block.
+If no field is found in the current fieldset, the query is evaluated in the page fields.
+
+#### Model variables
+The Site, Pages, Files and Users are "models". Other than content, they also have other properties that might be useful in a query.
+These properties are accessible by prepending an underscore (`_`) to their name, when (and only when) the query is being executed inside of their respective View.
+
+The accessible Site properties are:
+ - `_title`: the title of the site
+
+The accessible Page properties are:
+ - `_status`: the status of the page (one of 'draft', 'unlisted' or 'listed')
+ - `_id`: the id of the page
+ - `_title`: the title of the page
+
+The accessible User properties are:
+ - `_id`: the id of the user
+ - `_email`: the email of the user
+ - `_name`: the name of the user
+ - `_username`: the username of the user (either the name or the email as fallback)
+ - `_language`: the language of the user
+ - `_role`: the role name of the user (e.g. "Admin" with a capital "A")
+ - `_avatar`: the url of the user's avatar
+ - `_account`: boolean indicating if this is the current user's account
+
+The accessible File properties are:
+ - `_dimensions.width`: If the file is an image, the width of the image
+ - `_dimensions.height`: If the file is an image, the height of the image
+ - `_dimensions.ratio`: If the file is an image, the ratio of the image
+ - `_dimensions.orientation`: If the file is an image, one of "landscape", "square" or "portrait"
+ - `_extension`: the extension of the file (e.g. "jpg", "png", "gif")
+ - `_filename`: the filename of the file
+ - `_mime`: the mime type of the file
+ - `_niceSize`: the nice size of the file (e.g. "1.2 MB", "2.3 KB")
+ - `_template`: the file template
+ - `_type`: the file type, any of "archive", "audio", "code", "document", "image", "video" or null
+ - `_url`: the media url to the file
+
+##### Example
+```yml
+fields:
+    date:
+        type: date
+
+    dateInfo:
+        type: info
+        label: Heads up!
+        text: This page is listed, its date will be ignored for sorting.
+        theme: positive
+        whenQuery: date && _status = 'listed'
+```
