@@ -2,6 +2,7 @@ import runQuery from "./lib/interpreter";
 
 declare namespace panel {
   function plugin(name: string, options: any): void;
+  const app: any;
 }
 
 panel.plugin('rasteiner/whenquery', {
@@ -30,42 +31,31 @@ panel.plugin('rasteiner/whenquery', {
       addModelWatch("k-user-view");
       addModelWatch("k-account-view");
 
-      function extend(type) {
-        const original = Vue.component(type);
-        Vue.component(type, {
-          extends: original,
-          methods: {
-            meetsCondition(element) {
-              if(!original.options.methods.meetsCondition.call(this, element)) {
-                return false;
-              }
+      const orig = Vue.prototype.$helper.field.isVisible;
 
-              if(element.whenQuery) {
-                const context = (name) => {
-                  //variable names starting with _ refer to the model and not its content
-                  if(name[0] === '_') {
-                    return modelContainer?.model?.[name.substr(1)];
-                  }
+      Vue.prototype.$helper.field.isVisible = function(field, values) {
+        if(!orig(field, values)) return false;
 
-                  if(this.value?.[name.toLowerCase()] !== undefined) {
-                    //first look if the name exists in a local "value" property
-                    return this.value[name.toLowerCase()];
-                  } else {
-                    //otherwhise look in the global context
-                    return this.$store.getters['content/values']()[name.toLowerCase()];
-                  }
-                };
-                return runQuery(context, element.whenQuery);
-              }
-
-              return true;
+        if(field.whenQuery) {
+          const context = (name) => {
+            //variable names starting with _ refer to the model and not its content
+            if(name[0] === '_') {
+              return modelContainer?.model?.[name.substr(1)];
             }
-          }
-        });
-      }
 
-      extend('k-sections');
-      extend('k-fieldset');
+            if(values?.[name.toLowerCase()] !== undefined) {
+              //first look if the name exists in a local "value" property
+              return values[name.toLowerCase()];
+            } else {
+              //otherwise look in the global context
+              return panel?.app?.$store?.getters['content/values']()[name.toLowerCase()];
+            }
+          };
+
+          return runQuery(context, field.whenQuery);
+        }
+        return true;
+      };
     }
   ]
 });
