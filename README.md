@@ -203,3 +203,6 @@ fields:
         theme: positive
         whenQuery: date && _status = 'listed'
 ```
+
+## Known issues
+ - This plugin extends and replaces the default `Blocks` and `Layout` field types. This means that it is not compatible with other plugins that do the same.

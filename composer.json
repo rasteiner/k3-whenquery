@@ -2,7 +2,7 @@
   "name": "rasteiner/k3-whenquery",
   "description": "Conditionally show fields and sections. Better.",
   "type": "kirby-plugin",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "license": "MIT",
   "homepage": "https://getkirby.com/plugins/rasteiner/k3-whenquery",
   "authors": [
