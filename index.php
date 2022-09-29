@@ -7,7 +7,7 @@ use Kirby\Form\Field\LayoutField;
 
 class QueryBlocksField extends BlocksField
 {
-    protected string $whenQuery;
+    protected ?string $whenQuery;
 
     public function __construct($params)
     {
@@ -40,7 +40,7 @@ class QueryBlocksField extends BlocksField
 
 class QueryLayoutField extends LayoutField
 {
-    protected string $whenQuery;
+    protected ?string $whenQuery;
 
     public function __construct($props)
     {
