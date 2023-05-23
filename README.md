@@ -86,7 +86,7 @@ The search operator `=~` is a multifunction tool: it behaves differently dependi
  - `[a,b,c] =~ a`: element on array, returns `true` if an element is present in an array. This case can optionally also be written in the reverse order: `a =~ [a,b,c]`
  - `[a,b,c] =~ [b,c]`: array on array, returns `true` if all elements of the right hand side are present in the left hand side array. 
  - `12 =~ 2`: number on number, returns `true` if "left" is divisible by "right" (`left % right = 0`). 
- - `"string" =~ /inG$/i`: string on regex, returns `true` if the string matches the regex. RegExes are useful only in combination with the search operator. 
+ - `"string" =~ /inG$/i`: regex on string, returns `true` if the string matches the regex. RegExes are useful only in combination with the search operator. 
   
 There's also support for String, Number, Boolean (`true`, `false`), Object and Array literals. 
  
