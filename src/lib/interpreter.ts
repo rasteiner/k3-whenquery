@@ -16,7 +16,7 @@ enum TokenType {
   OR, AND, DOUBLE_COLON,
 
   //Literals
-  IDENTIFIER, STRING, NUMBER,
+  IDENTIFIER, STRING, NUMBER, REGEX,
 
   //KEYWORDS
   NULL, TRUE, FALSE,
@@ -69,7 +69,6 @@ class Scanner {
       case ',': this.addToken(TokenType.COMMA); break;
       case '.': this.addToken(TokenType.DOT); break;
       case '+': this.addToken(TokenType.PLUS); break;
-      case '/': this.addToken(TokenType.SLASH); break;
       case '*': this.addToken(TokenType.STAR); break;
       case '-': this.addToken(TokenType.MINUS); break;
       case '%': this.addToken(TokenType.MOD); break;
@@ -80,6 +79,7 @@ class Scanner {
       case '!': this.addToken(this.match('=') ? TokenType.BANG_EQUAL : TokenType.BANG); break;
       case '>': this.addToken(this.match('=') ? TokenType.GREATER_EQUAL : TokenType.GREATER); break;
       case '<': this.addToken(this.match('=') ? TokenType.LESS_EQUAL : TokenType.LESS); break;
+
       case '|':
         if (this.match('|')) {
           this.addToken(TokenType.OR);
@@ -96,6 +96,26 @@ class Scanner {
         break;
       case '"': this.string('"'); break;
       case '\'': this.string('\''); break;
+      case '/':
+        // determine if this is a regex or a division operator
+        // if the previous token is any kind of identifier, literal or closing bracket, then this is a division
+        const prev = this.tokens[this.tokens.length - 1];
+        if(prev) {
+          if(prev.type == TokenType.IDENTIFIER
+            || prev.type == TokenType.NUMBER
+            || prev.type == TokenType.STRING
+            || prev.type == TokenType.RIGHT_BRACKET
+            || prev.type == TokenType.RIGHT_PAREN
+            || prev.type == TokenType.TRUE
+            || prev.type == TokenType.FALSE
+            || prev.type == TokenType.NULL) {
+            this.addToken(TokenType.SLASH);
+          } else {
+            this.regex();
+          }
+        }
+
+        break;
       case ' ':
       case '\t':
         break;
@@ -194,6 +214,37 @@ class Scanner {
     }
 
     this.addToken(TokenType.NUMBER, Number(this.source.substring(this.start, this.current)));
+  }
+
+  private regex() {
+    while (true) {
+      const c = this.peek();
+      if (this.isAtEnd()) {
+        return this.error('Unterminated regex');
+      }
+      if (c == '\\' && this.peekNext() == '/') {
+        this.advance();
+      } else if (c == '/') {
+        this.advance();
+        break;
+      }
+      this.advance();
+    }
+
+    const text = this.source.substring(this.start + 1, this.current - 1);
+
+    // parse flags
+    const flags = [];
+    while (true) {
+      const flag = this.peek();
+      if (flag == 'i' || flag == 'g' || flag == 's' || flag == 'm' || flag == 'u' || flag == 'y') {
+        flags.push(this.advance());
+      } else {
+        break;
+      }
+    }
+
+    this.addToken(TokenType.REGEX, new RegExp(text, flags.join('')));
   }
 
   private identifier() {
@@ -617,6 +668,7 @@ class KXLParser extends Parser {
     if (this.match(TokenType.NULL)) return new Literal(null);
     if (this.match(TokenType.NUMBER)) return new Literal(this.previous().literal);
     if (this.match(TokenType.STRING)) return new Literal(this.previous().literal);
+    if (this.match(TokenType.REGEX)) return new Literal(this.previous().literal);
 
     if (this.match(TokenType.CURRENT)) return new Current();
     if (this.match(TokenType.PREVIOUS)) return new Current(1);
@@ -824,12 +876,16 @@ class Interpreter implements Visitor {
     }
   }
   search(left:any, right:any) {
-    if (typeof left == 'string' && typeof right == 'string') {
+    if (typeof left === "string" && typeof right === "string") {
       return left.indexOf(right) !== -1;
     }
 
-    if (typeof left == "number" && typeof right == "number") {
+    if (typeof left === "number" && typeof right === "number") {
       return left % right == 0;
+    }
+
+    if (typeof left === "string" && right instanceof RegExp) {
+      return right.test(left);
     }
 
     if (Array.isArray(left)) {
