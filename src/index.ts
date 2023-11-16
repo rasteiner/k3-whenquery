@@ -9,6 +9,7 @@ panel.plugin('rasteiner/whenquery', {
   use: [
     function(Vue) {
       const modelContainer = Vue.observable({});
+      const userContainer = Vue.observable({})
 
       function addModelWatch(type) {
         const options = Vue.component(type).options;
@@ -16,10 +17,12 @@ panel.plugin('rasteiner/whenquery', {
           extends: options,
           created() {
             modelContainer.model = this.model;
+            userContainer.model = this.$user;
           },
           watch: {
             model: function(newValue) {
               modelContainer.model = newValue;
+              userContainer.model = newValue;
             }
           }
         });
@@ -38,9 +41,15 @@ panel.plugin('rasteiner/whenquery', {
 
         if(field.whenQuery) {
           const context = (name) => {
+
+            //variable names starting with __ refer to the current user-model
+            if (name.substring(0, 2) === '__') {
+              return userContainer?.model?.[name.substring(2)]
+            }
+            
             //variable names starting with _ refer to the model and not its content
             if(name[0] === '_') {
-              return modelContainer?.model?.[name.substr(1)];
+              return modelContainer?.model?.[name.substring(1)];
             }
 
             if(values?.[name.toLowerCase()] !== undefined) {
